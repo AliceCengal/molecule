@@ -1,0 +1,27 @@
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  padding: 6rem;
+  min-height: 100vh;
+}
+
+.beam {
+  display: flex;
+  gap: 16px;
+}
+
+.task_row {
+  display: flex;
+  margin-bottom: 16px;
+}
+
+.task_row > *:first-child {
+  flex-grow: 1;
+  margin-inline-end: 16px;
+}
+
+.task_done {
+  text-decoration: line-through;
+}
