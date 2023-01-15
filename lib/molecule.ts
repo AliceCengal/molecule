@@ -1,31 +1,39 @@
 import { useSyncExternalStore } from "react";
 
 type Enzyme<State, Action> = (s: State, a: Action) => State;
+type Dispatch<Action> = (a: Action) => void;
+type Cofactor<Action> = (a: Action) => Action;
 
 export function synthesize<State, Action>(
   initialState: State,
-  reducer: Enzyme<State, Action>
+  reducer: Enzyme<State, Action>,
+  ...middlewares: Cofactor<Action>[]
 ) {
-  const m = new Molecule(initialState, reducer);
-
-  function useMolecule(): [State, (a: Action) => void];
-  function useMolecule<T>(selector?: (s: State) => T): [T, (a: Action) => void];
-
-  function useMolecule<T>(selector?: (s: State) => T): unknown {
-    return [
-      useSyncExternalStore(
-        m.subscribe.bind(m),
-        () => (selector ? selector(m.getState()) : m.getState()),
-        () => (selector ? selector(m.getState()) : m.getState())
-      ),
-      m.dispatch.bind(m),
-    ];
-  }
+  const m = new Molecule(initialState, reducer, middlewares);
 
   return {
-    useMolecule,
-    useDispatch() {
+    useMolecule<T>(selector: (s: State) => T): [T, Dispatch<Action>] {
+      return [
+        useSyncExternalStore(
+          m.subscribe.bind(m),
+          () => selector(m.getState()),
+          () => selector(m.getState())
+        ),
+        m.dispatch.bind(m),
+      ];
+    },
+    useDispatch(): Dispatch<Action> {
       return m.dispatch.bind(m);
+    },
+    useMacromolecule(): [State, Dispatch<Action>] {
+      return [
+        useSyncExternalStore(
+          m.subscribe.bind(m),
+          m.getState.bind(m),
+          m.getState.bind(m)
+        ),
+        m.dispatch.bind(m),
+      ];
     },
   };
 }
@@ -33,11 +41,13 @@ export function synthesize<State, Action>(
 class Molecule<State, Action> {
   atom: State;
   enzyme: Enzyme<State, Action>;
+  cofactors: Cofactor<Action>[];
   listeners = new Set<() => void>();
 
-  constructor(s: State, e: Enzyme<State, Action>) {
+  constructor(s: State, e: Enzyme<State, Action>, co?: Cofactor<Action>[]) {
     this.atom = s;
     this.enzyme = e;
+    this.cofactors = co || [];
   }
 
   getState(): State {
@@ -45,7 +55,10 @@ class Molecule<State, Action> {
   }
 
   dispatch(a: Action): void {
-    this.atom = this.enzyme(this.atom, a);
+    this.atom = this.enzyme(
+      this.atom,
+      this.cofactors.reduce((aa, bb) => bb(aa), a)
+    );
     for (const l of this.listeners) {
       l();
     }

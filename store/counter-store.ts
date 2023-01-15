@@ -32,5 +32,9 @@ export const {
         };
       }
     }
+  },
+  (a) => {
+    console.log(a);
+    return a;
   }
 );
